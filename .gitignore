@@ -1,0 +1,38 @@
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.env
+.venv/
+
+# SQLite DB
+*.db
+*.sqlite3
+
+# Logs and test output
+*.log
+*.out
+
+# macOS / Linux / Windows system files
+.DS_Store
+Thumbs.db
+
+# Pytest
+.cache/
+.pytest_cache/
+
+# Editor directories
+.vscode/
+.idea/
+
+# Jupyter/IPython
+.ipynb_checkpoints/
+
+# Build / distribution
+build/
+dist/
+*.egg-info/
