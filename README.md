@@ -21,6 +21,8 @@ An open-source field service management (FSM) system built using FastAPI and SQL
 
 ## Usage
 
+### Backend
+
 #### Clone the repo
 ```bash
 git clone https://github.com/zblauser/fieldopt.git
@@ -38,7 +40,7 @@ venv\Scripts\activate <-- on windows
 
 #### Install dependencies
 ```bash
-pip install fastapi uvicorn sqlalchemy
+pip install fastapi uvicorn sqlalchemy pydantic
 ```
 
 #### Run the app
@@ -58,6 +60,33 @@ http://localhost:8000/docs
 - Auto-assign jobs to matching technicians
 - FSM job lifecycle: `pending → assigned → in_progress → completed`
 - Interactive API testing via Swagger UI
+
+### Frontend
+```bash
+cd fieldopt/frontend
+```
+
+#### Install Dependencies
+```bash
+npm install
+```
+
+#### Start React Server
+```bash
+npm run dev
+```
+
+#### Open Frontend UI
+```bash
+http://localhost:5173
+```
+
+### Notes
+
+- Built with Vite + Tailwind CSS
+- Requires FastAPI backend running at http://localhost:8000
+
+---
 
 #### API Endpoints
 
