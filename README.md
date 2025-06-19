@@ -1,11 +1,21 @@
 # FieldOpt
-[v0.0.1]
+[v0.0.2]
 ![til](./assets/fieldopt-Demo1.png)
 ![til](./assets/fieldopt-Demo2.png)
 ![til](./assets/fieldopt-Demo3.png)
+![til](./assets/fieldopt-Demo4.png)
 
 ## Overview
 An open-source field service management (FSM) system built using FastAPI and SQLite. It lets you create technicians and jobs, auto-assign work based on skills, and manage job state transitions using FSM-style logic (pending → assigned → in progress → completed).
+
+---
+
+## Change Log
+[v0.0.2]
+
+- FastAPI + React integration; it isn't pretty but it's scaffolded
+- Technician + Job CRUD via API
+- Live frontend displaying job/tech tables; based on created jobs/techs
 
 ---
 
