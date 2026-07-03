@@ -1,17 +1,6 @@
-# Multi-stage build: frontend (node) + backend (python) in one image.
-# FastAPI serves the built SPA via StaticFiles. No separate nginx needed.
+# Single-stage python runtime. FastAPI serves the HTMX UI via Jinja2
+# templates + StaticFiles (no node, no npm, no SPA bundle).
 
-# ── Stage 1: build frontend ──────────────────────────────────────────
-FROM node:20-alpine AS frontend
-WORKDIR /app/frontend
-
-COPY frontend/package*.json ./
-RUN npm ci
-
-COPY frontend/ ./
-RUN npm run build
-
-# ── Stage 2: python runtime ──────────────────────────────────────────
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -30,9 +19,6 @@ RUN pip install --no-cache-dir \
 COPY backend/ ./backend/
 COPY alembic/ ./alembic/
 COPY alembic.ini ./
-
-# Built SPA from stage 1
-COPY --from=frontend /app/frontend/dist ./frontend/dist
 
 ENV PYTHONUNBUFFERED=1 \
 	PYTHONDONTWRITEBYTECODE=1

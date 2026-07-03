@@ -1,0 +1,33 @@
+<table class="grid tech-grid">
+	<thead>
+		<tr>
+			<th class="num">TECH ID</th>
+			<th>NAME</th>
+			<th>STATUS</th>
+			<th>SHIFT</th>
+			<th class="num">JOBS A:C</th>
+			<th>ROUTES</th>
+		</tr>
+	</thead>
+	<tbody>
+		{% for t in techs %}
+		{% set assigned = t.assignments|selectattr("job.status.value", "in", ["assigned", "in_progress"])|list|length %}
+		{% set completed = t.assignments|selectattr("job.status.value", "equalto", "completed")|list|length %}
+		<tr class="grid-row drop-target"
+		    data-tech-id="{{ t.id }}"
+		    data-tech-name="{{ t.name }}"
+		    data-tech-status="{{ t.status.value }}"
+		    ondblclick="openWindow('tech/{{ t.id }}', '{{ t.name }}')"
+		    oncontextmenu="event.preventDefault(); showTechMenu(event, this)">
+			<td class="num mono">{{ t.employee_id or t.id }}</td>
+			<td>{{ t.name }}</td>
+			<td><span class="pill pill--{{ t.status.value }}">{{ t.status.value|upper|replace('_', ' ') }}</span></td>
+			<td class="mono">{{ t.shift_start }}–{{ t.shift_end }}</td>
+			<td class="num mono">{{ assigned }}:{{ completed }}</td>
+			<td class="routes mono">{{ (t.assigned_routes or [])|join(', ') }}</td>
+		</tr>
+		{% else %}
+		<tr><td colspan="6" class="empty">No technicians.</td></tr>
+		{% endfor %}
+	</tbody>
+</table>

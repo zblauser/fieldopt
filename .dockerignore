@@ -10,12 +10,8 @@ __pycache__
 .coverage
 htmlcov
 
-# Frontend build artifacts and deps — rebuilt inside image
-frontend/node_modules
-frontend/dist
-frontend/.vite
-frontend/src.bak
-
+# Archived React frontend — never built
+archive
 node_modules
 
 # Editors / OS

@@ -1,0 +1,905 @@
+{% extends "base.html" %}
+{% block title %}FieldOpt — Dispatch{% endblock %}
+{% block body %}
+<div class="app-shell">
+
+	<!-- Row 1: Header -->
+	<header class="header-bar">
+		<div class="header-brand">
+			<div class="header-brand-icon"></div>
+			FieldOpt
+		</div>
+		<span class="header-real-clock mono" id="real-clock">--:--:--</span>
+
+		<!-- Day picker -->
+		<div class="day-picker">
+			<button class="btn icon-btn" id="day-prev" title="Previous day" onclick="shiftDay(-1)">◂</button>
+			<button class="btn btn--primary day-btn" id="day-label" onclick="toggleCalendar(event)">Demo Day</button>
+			<button class="btn icon-btn" id="day-next" title="Next day" onclick="shiftDay(1)">▸</button>
+		</div>
+
+		<div class="header-actions">
+			<button class="btn icon-btn" id="btn-filter" title="Filter" onclick="openWindow('filter', 'Filter')">
+				<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 2.5h13l-5 5.5v4l-3 1.5V8z"/></svg>
+			</button>
+			<button class="btn icon-btn" id="btn-personnel" title="Personnel" onclick="openWindow('personnel', 'Personnel')">
+				<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="2.5"/><path d="M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5"/></svg>
+			</button>
+			<button class="btn icon-btn" id="btn-search" title="Job Search" onclick="openWindow('search', 'Job Search')">
+				<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="6.5" r="4"/><path d="M10 10l4 4"/></svg>
+			</button>
+			<button class="btn icon-btn" id="btn-settings" title="Settings" onclick="openWindow('settings', 'Settings')">
+				<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></svg>
+			</button>
+			<button class="btn icon-btn" id="btn-timeline" title="Toggle Timeline" onclick="toggleTimeline()">
+				<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 4h14M1 8h14M1 12h14"/><rect x="3" y="2.5" width="4" height="3" rx="0.5" fill="currentColor" stroke="none"/><rect x="8" y="6.5" width="5" height="3" rx="0.5" fill="currentColor" stroke="none"/><rect x="2" y="10.5" width="3" height="3" rx="0.5" fill="currentColor" stroke="none"/></svg>
+			</button>
+			<button class="btn icon-btn" id="btn-map" title="Toggle Map" onclick="toggleMapWindow()">
+				<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3.5l4.5-2 5 2.5 4.5-2v11l-4.5 2-5-2.5-4.5 2z"/><path d="M5.5 1.5v11M10.5 4v11"/></svg>
+			</button>
+			<button class="btn icon-btn" title="Refresh" onclick="refreshAll()">
+				<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 8a5.5 5.5 0 019.3-4M13.5 8a5.5 5.5 0 01-9.3 4"/><path d="M11.5 1v3h3M4.5 15v-3h-3"/></svg>
+			</button>
+			<button class="btn btn--warning icon-btn" title="Auto-Route" onclick="confirmAutoRoute()">
+				<svg viewBox="0 0 16 16" fill="currentColor"><path d="M9.5 1L3 9h4.5L6.5 15 13 7H8.5z"/></svg>
+			</button>
+		</div>
+	</header>
+
+	<!-- Row 2: Sim bar (demo only) -->
+	{% if sim.is_demo %}
+	<div class="sim-bar-row" id="sim-bar-wrap">
+		{% include "_sim_bar.html" %}
+	</div>
+	{% endif %}
+
+	<!-- Row 3: Dashboard counts -->
+	<div class="dashboard-bar" id="dash-bar"
+	     hx-get="/counts" hx-trigger="every 3s, refreshAll from:body" hx-swap="morph:innerHTML">
+		{% include "_dash_bar.html" %}
+	</div>
+
+	<!-- Body: VERTICAL stack with resizable splitters -->
+	<div class="stack" id="stack">
+
+		<section class="pane pane-techs" id="pane-techs">
+			<div class="pane-header">
+				<span class="pane-title">Technicians</span>
+				<span class="pane-count" id="tech-count">{{ techs|length }}</span>
+				<span class="pane-sel-count" id="tech-sel-count"></span>
+			</div>
+			<div class="pane-body scroll-pres" id="tech-list"
+			     hx-get="/techs" hx-trigger="every 3s, refreshAll from:body" hx-swap="morph:innerHTML">
+				{% include "_tech_list.html" %}
+			</div>
+		</section>
+
+		<div class="row-splitter" data-resize="techs"></div>
+
+		<section class="pane pane-jobs" id="pane-jobs">
+			<div class="pane-header">
+				<span class="pane-title">Jobs</span>
+				<span class="pane-count" id="job-count">{{ jobs|length }}</span>
+				<span class="pane-sel-count" id="job-sel-count"></span>
+			</div>
+			{# Hidden status input — driven by dash-bar status cells. Filter window covers type/tech/route client-side. #}
+			<input type="hidden" name="status" value="{{ selected_status or '' }}"
+			       hx-get="/jobs" hx-target="#job-table" hx-trigger="change" hx-swap="morph:innerHTML">
+			<div class="pane-body scroll-pres" id="job-table"
+			     hx-get="/jobs" hx-trigger="every 3s, refreshAll from:body" hx-swap="morph:innerHTML"
+			     hx-include="[name='status']">
+				{% include "_job_table.html" %}
+			</div>
+		</section>
+
+		<div class="row-splitter" data-resize="jobs"></div>
+
+		<section class="pane pane-timeline" id="timeline-pane" hidden>
+			<div class="pane-header">
+				<span class="pane-title">Timeline</span>
+				<span class="pane-count" id="timeline-sel-info"></span>
+				<div class="pane-actions">
+					<button class="btn" onclick="toggleTimeline()">Close</button>
+				</div>
+			</div>
+			<div class="pane-body scroll-pres" id="timeline"
+			     hx-get="/timeline" hx-trigger="every 3s, refreshAll from:body" hx-swap="morph:innerHTML"
+			     hx-include="#tech-selection">
+				<div class="timeline-wrap"><em class="muted">Loading…</em></div>
+			</div>
+		</section>
+
+	</div>
+</div>
+
+<input type="hidden" id="tech-selection" name="selected" value="">
+
+<!-- Floating windows host + overlays -->
+<div id="win-host"></div>
+<div id="toast-host"></div>
+<div id="modal-host"></div>
+<div id="ctx-menu" class="ctx-menu" hidden></div>
+<div id="drag-ghost" class="drag-ghost" hidden></div>
+
+<script>
+	// ── State ───────────────────────────────────────────────────────────────
+	const selTechs = new Set();
+	const selJobs = new Set();
+	let lastTechClick = null;
+	let lastJobClick = null;
+	let mapWin = null;
+
+	function refreshAll() { document.body.dispatchEvent(new Event("refreshAll")); }
+
+	// ── Floating window manager (with localStorage persistence) ────────────
+	const openWins = new Map(); // key -> { el, btn }
+	let zCounter = 700;
+	const WIN_KEY = (k) => "fieldopt.win." + k.replace(/\//g, "_");
+	function loadWinState(key) {
+		try { return JSON.parse(localStorage.getItem(WIN_KEY(key)) || "null"); } catch { return null; }
+	}
+	function saveWinState(key, w) {
+		try {
+			localStorage.setItem(WIN_KEY(key), JSON.stringify({
+				left: w.style.left, top: w.style.top,
+				width: w.style.width, height: w.style.height,
+			}));
+		} catch {}
+	}
+
+	window.openWindow = async function(key, title) {
+		if (openWins.has(key)) { closeWindow(key); return; }
+		const btn = document.getElementById("btn-" + key.replace(/\/.*/, ""));
+		if (btn) btn.classList.add("btn--primary");
+		const w = document.createElement("div");
+		w.className = "float-win";
+		w.dataset.key = key;
+		const saved = loadWinState(key);
+		w.style.width  = saved?.width  || "560px";
+		w.style.height = saved?.height || "480px";
+		w.style.left   = saved?.left   || (80 + openWins.size * 28) + "px";
+		w.style.top    = saved?.top    || (90 + openWins.size * 28) + "px";
+		w.style.zIndex = ++zCounter;
+		w.innerHTML = `
+			<div class="float-win-head">
+				<span class="float-win-title">${title}</span>
+				<button class="float-win-close" onclick="closeWindow('${key}')">×</button>
+			</div>
+			<div class="float-win-body" id="win-${key}-content"><em class="muted" style="padding:20px;display:block;">Loading…</em></div>`;
+		document.getElementById("win-host").appendChild(w);
+		openWins.set(key, { el: w, btn });
+
+		// Drag the window by header
+		const head = w.querySelector(".float-win-head");
+		let dragWin = null;
+		head.addEventListener("mousedown", (e) => {
+			if (e.target.closest(".float-win-close")) return;
+			w.style.zIndex = ++zCounter;
+			dragWin = { ox: e.clientX - w.offsetLeft, oy: e.clientY - w.offsetTop };
+			e.preventDefault();
+		});
+		document.addEventListener("mousemove", (e) => {
+			if (!dragWin) return;
+			w.style.left = (e.clientX - dragWin.ox) + "px";
+			w.style.top = (e.clientY - dragWin.oy) + "px";
+		});
+		document.addEventListener("mouseup", () => {
+			if (dragWin) { saveWinState(key, w); }
+			dragWin = null;
+		});
+		// Persist size on resize (corner grip)
+		new ResizeObserver(() => saveWinState(key, w)).observe(w);
+		w.addEventListener("mousedown", () => { w.style.zIndex = ++zCounter; });
+
+		// Load content
+		try {
+			const r = await fetch("/window/" + key);
+			document.getElementById("win-" + key + "-content").innerHTML = await r.text();
+			if (window.htmx) htmx.process(w);
+			if (window.attachAllResizers) attachAllResizers(w);
+		} catch { document.getElementById("win-" + key + "-content").innerHTML = '<div class="win-empty">Failed to load.</div>'; }
+	};
+
+	window.closeWindow = function(key) {
+		const w = openWins.get(key);
+		if (!w) return;
+		if (w.btn) w.btn.classList.remove("btn--primary");
+		w.el.remove();
+		openWins.delete(key);
+	};
+
+	// Filter window helpers
+	window.applyMainFilter = function(name, value) {
+		const sel = document.querySelector(`[name='${name}']`);
+		if (sel) { sel.value = value; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+	};
+	window.clearAllFilters = function() {
+		["status", "job_type", "tech_id", "route"].forEach(n => applyMainFilter(n, ""));
+	};
+	// Multi-select filter checkbox handlers (client-side row hide on job-table)
+	window.applyFilterMulti = function() {
+		const get = name => Array.from(document.querySelectorAll(`[name='f-${name}']:checked`)).map(c => c.value);
+		const statuses = new Set(get("status"));
+		const types = new Set(get("job_type"));
+		const routes = new Set(get("route"));
+		const techs = new Set(get("tech_id"));
+		document.querySelectorAll("#job-table .job-row").forEach(r => {
+			const st = r.dataset.jobStatus || "";
+			const type = r.querySelector("td:nth-child(2)")?.textContent.trim() || "";
+			const route = (r.querySelector("td.mono.route") || r.querySelector("td:nth-child(7)"))?.textContent.trim() || "";
+			const techCell = r.querySelector("td:nth-child(4)")?.textContent.trim() || "—";
+			const okStatus = statuses.size === 0 || statuses.has(st);
+			const okType = types.size === 0 || types.has(type);
+			const okRoute = routes.size === 0 || routes.has(route) || route === "—";
+			const okTech = techs.size === 0 ||
+				(techs.has("unassigned") && techCell === "—") ||
+				Array.from(techs).some(tid => tid !== "unassigned" && techCell !== "—");
+			r.style.display = (okStatus && okType && okRoute && okTech) ? "" : "none";
+		});
+	};
+	window.filterCheckAll = function(group, state) {
+		document.querySelectorAll(`[name='f-${group}']`).forEach(c => c.checked = state);
+		applyFilterMulti();
+	};
+	window.filterResetAll = function() {
+		document.querySelectorAll("[name^='f-']").forEach(c => c.checked = true);
+		applyFilterMulti();
+	};
+	window.filterClearAll = function() {
+		document.querySelectorAll("#job-table .job-row").forEach(r => r.style.display = "");
+	};
+
+	// Dash bar indicator click → filters Jobs grid by status
+	window.toggleDashFilter = function(cell) {
+		const filter = cell.dataset.filter;
+		if (!filter) return;
+		const [k, v] = filter.split("=");
+		const wasActive = cell.classList.contains("active");
+		document.querySelectorAll(".dash-cell[data-filter]").forEach(c => c.classList.remove("active"));
+		const statusSel = document.querySelector("[name='status']");
+		if (wasActive) {
+			statusSel.value = "";
+		} else {
+			cell.classList.add("active");
+			statusSel.value = v;
+		}
+		statusSel.dispatchEvent(new Event("change", { bubbles: true }));
+	};
+
+	// Search form clear
+	window.clearSearchForm = function(btn) {
+		const form = btn.closest("form");
+		form.querySelectorAll("input, select").forEach(el => { el.value = ""; });
+		form.requestSubmit();
+	};
+
+	// Personnel window search
+	window.filterPersonnel = function(q) {
+		q = (q || "").toLowerCase().trim();
+		const rows = document.querySelectorAll(".personnel-row");
+		let visible = 0;
+		rows.forEach(r => {
+			const hay = r.dataset.search || "";
+			const match = !q || hay.includes(q);
+			r.style.display = match ? "" : "none";
+			if (match) visible++;
+		});
+		const c = document.getElementById("personnel-count");
+		if (c) c.textContent = `${visible} / ${rows.length}`;
+	};
+
+	// Locate tech in main grid (from Personnel double-click)
+	window.locateTech = function(techId) {
+		const row = document.querySelector(`#tech-list [data-tech-id='${techId}']`);
+		if (!row) return;
+		selTechs.clear(); selTechs.add(String(techId));
+		applySelectionVisuals(); updateSelCounts(); syncTechSelection();
+		row.scrollIntoView({ behavior: "smooth", block: "center" });
+	};
+
+	// Refresh interval setter (persists to localStorage)
+	window.setRefreshInterval = function(ms) {
+		localStorage.setItem("fieldopt.refresh", ms);
+		document.querySelectorAll("[hx-trigger*='every']").forEach(el => {
+			const cur = el.getAttribute("hx-trigger");
+			const next = ms > 0
+				? cur.replace(/every \d+m?s/, `every ${ms}ms`)
+				: cur.replace(/every \d+m?s,?\s*/, "");
+			el.setAttribute("hx-trigger", next.trim() || "refreshAll from:body");
+			if (window.htmx) htmx.process(el);
+		});
+		showToast(`Refresh: ${ms > 0 ? (ms/1000) + 's' : 'off'}`, "success");
+	};
+	// Apply saved refresh interval on load
+	const _savedRefresh = parseInt(localStorage.getItem("fieldopt.refresh") || "3000", 10);
+	if (_savedRefresh !== 3000) setTimeout(() => setRefreshInterval(_savedRefresh), 500);
+
+	// Density persisted
+	const _savedDensity = localStorage.getItem("fieldopt.density");
+	if (_savedDensity) document.body.dataset.density = _savedDensity;
+
+	// ── Related-job highlight on tech selection ────────────────────────────
+	function highlightRelatedJobs() {
+		const selTechSet = selTechs;
+		document.querySelectorAll(".job-row").forEach(row => {
+			const techCell = row.querySelector("td:nth-child(4)")?.textContent.trim();
+			let related = false;
+			if (selTechSet.size > 0 && techCell && techCell !== "—") {
+				selTechSet.forEach(tid => {
+					const tRow = document.querySelector(`[data-tech-id='${tid}']`);
+					if (tRow && tRow.dataset.techName === techCell) related = true;
+				});
+			}
+			row.classList.toggle("related", related);
+		});
+	}
+	// Hook into existing visuals update
+	const _origApply = applySelectionVisuals;
+	window.applySelectionVisuals = function() {
+		_origApply();
+		highlightRelatedJobs();
+	};
+
+	// ── Scroll preservation across HTMX swaps ──────────────────────────────
+	document.body.addEventListener("htmx:beforeSwap", (e) => {
+		const t = e.detail.target;
+		if (t.classList.contains("scroll-pres")) t.dataset.scrollY = t.scrollTop;
+	});
+	document.body.addEventListener("htmx:afterSwap", (e) => {
+		const t = e.detail.target;
+		if (t.classList.contains("scroll-pres") && t.dataset.scrollY) {
+			t.scrollTop = parseInt(t.dataset.scrollY, 10);
+		}
+		applySelectionVisuals();
+	});
+
+	// ── Clock SSE + real clock ─────────────────────────────────────────────
+	const src = new EventSource("/sim/stream");
+	src.addEventListener("tick", (e) => {
+		const d = JSON.parse(e.data);
+		const c = document.getElementById("sim-clock");
+		if (c) c.textContent = d.mode === "real" ? "--:--:--" : d.hms;
+		document.body.classList.toggle("demo-locked", d.mode === "simulated" && !d.paused);
+	});
+	function updateRealClock() {
+		const el = document.getElementById("real-clock");
+		if (!el) return;
+		const d = new Date();
+		const h12 = d.getHours() % 12 || 12;
+		const mm = String(d.getMinutes()).padStart(2, "0");
+		const ampm = d.getHours() >= 12 ? "PM" : "AM";
+		el.textContent = `${h12}:${mm} ${ampm}`;
+	}
+	updateRealClock(); setInterval(updateRealClock, 1000);
+
+	// ── Resizable splitters ─────────────────────────────────────────────────
+	let resizing = null;
+	document.addEventListener("mousedown", (e) => {
+		const sp = e.target.closest(".row-splitter");
+		if (!sp) return;
+		resizing = { which: sp.dataset.resize, startY: e.clientY, el: sp };
+		sp.classList.add("dragging");
+		e.preventDefault();
+	});
+	document.addEventListener("mousemove", (e) => {
+		if (!resizing) return;
+		const stack = document.getElementById("stack");
+		const rect = stack.getBoundingClientRect();
+		const relY = e.clientY - rect.top;
+		const pct = Math.max(10, Math.min(85, (relY / rect.height) * 100));
+		if (resizing.which === "techs") {
+			document.getElementById("pane-techs").style.flex = `0 0 ${pct}%`;
+		} else if (resizing.which === "jobs") {
+			// Jobs ends at this Y; timeline takes the rest
+			const techsH = document.getElementById("pane-techs").getBoundingClientRect().height;
+			const jobsH = Math.max(80, e.clientY - rect.top - techsH - 5);
+			document.getElementById("pane-jobs").style.flex = `0 0 ${jobsH}px`;
+		}
+	});
+	document.addEventListener("mouseup", () => {
+		if (resizing) { resizing.el.classList.remove("dragging"); resizing = null; }
+	});
+
+	// ── Toast ───────────────────────────────────────────────────────────────
+	function showToast(msg, kind = "success") {
+		const host = document.getElementById("toast-host");
+		const el = document.createElement("div");
+		el.className = "toast toast--" + kind;
+		el.textContent = msg;
+		host.appendChild(el);
+		setTimeout(() => el.remove(), 3500);
+	}
+
+	// ── Selection (Ctrl/Cmd-click toggle, Shift-click range, Ctrl+A all) ───
+	function getRowsInDom(scope) {
+		return Array.from(document.querySelectorAll(`#${scope}-list [data-tech-id], #${scope}-table [data-job-id]`));
+	}
+	function setSelection(scope, ids) {
+		const set = scope === "tech" ? selTechs : selJobs;
+		set.clear();
+		ids.forEach(i => set.add(String(i)));
+		applySelectionVisuals();
+		updateSelCounts();
+		if (scope === "tech") syncTechSelection();
+	}
+	function toggleId(scope, id, e, listEl) {
+		const set = scope === "tech" ? selTechs : selJobs;
+		const lastVar = scope === "tech" ? "lastTechClick" : "lastJobClick";
+		const all = Array.from(listEl.querySelectorAll(scope === "tech" ? "[data-tech-id]" : "[data-job-id]"))
+		                .map(r => r.dataset[scope + "Id"]);
+		const idStr = String(id);
+		if (e.shiftKey && window[lastVar]) {
+			const a = all.indexOf(window[lastVar]); const b = all.indexOf(idStr);
+			if (a >= 0 && b >= 0) { const [s, x] = a < b ? [a, b] : [b, a]; all.slice(s, x + 1).forEach(i => set.add(i)); }
+		} else if (e.metaKey || e.ctrlKey) {
+			set.has(idStr) ? set.delete(idStr) : set.add(idStr);
+		} else {
+			set.clear(); set.add(idStr);
+		}
+		window[lastVar] = idStr;
+		applySelectionVisuals();
+		updateSelCounts();
+		if (scope === "tech") syncTechSelection();
+	}
+	function applySelectionVisuals() {
+		document.querySelectorAll("[data-tech-id]").forEach(r => r.classList.toggle("selected", selTechs.has(r.dataset.techId)));
+		document.querySelectorAll("[data-job-id]").forEach(r => r.classList.toggle("selected", selJobs.has(r.dataset.jobId)));
+	}
+	function updateSelCounts() {
+		document.getElementById("tech-sel-count").textContent = selTechs.size ? `(${selTechs.size} selected)` : "";
+		document.getElementById("job-sel-count").textContent = selJobs.size ? `(${selJobs.size} selected)` : "";
+		document.getElementById("timeline-sel-info").textContent = selTechs.size ? `${selTechs.size} tech selected` : "all techs";
+	}
+	function syncTechSelection() {
+		document.getElementById("tech-selection").value = Array.from(selTechs).join(",");
+		// Refresh timeline so it filters by selection
+		const tl = document.getElementById("timeline-pane");
+		if (tl && !tl.hidden) htmx.trigger("#timeline", "refreshAll");
+	}
+
+	document.addEventListener("click", (e) => {
+		const techRow = e.target.closest("[data-tech-id]");
+		const jobRow = e.target.closest("[data-job-id]");
+		if (techRow) toggleId("tech", techRow.dataset.techId, e, document.getElementById("tech-list"));
+		else if (jobRow) toggleId("job", jobRow.dataset.jobId, e, document.getElementById("job-table"));
+	});
+	document.addEventListener("keydown", (e) => {
+		// Don't intercept typing in inputs
+		if (e.target.matches("input, textarea, select")) return;
+
+		if ((e.metaKey || e.ctrlKey) && e.key === "a") {
+			e.preventDefault();
+			const focusedJobs = document.querySelector("#job-table:hover");
+			const focusedTechs = document.querySelector("#tech-list:hover");
+			if (focusedTechs || (!focusedJobs && document.activeElement.closest("#tech-list"))) {
+				const ids = Array.from(document.querySelectorAll("[data-tech-id]")).map(r => r.dataset.techId);
+				setSelection("tech", ids);
+			} else {
+				const ids = Array.from(document.querySelectorAll("[data-job-id]")).map(r => r.dataset.jobId);
+				setSelection("job", ids);
+			}
+			return;
+		}
+		if (e.key === "Escape") {
+			selTechs.clear(); selJobs.clear(); applySelectionVisuals(); updateSelCounts(); syncTechSelection();
+			document.getElementById("modal-host").innerHTML = "";
+			ctxMenu.hidden = true;
+			return;
+		}
+
+		// Job action shortcuts (only when jobs selected and not in input)
+		if (selJobs.size === 0) return;
+		const ids = Array.from(selJobs);
+		const k = e.key.toLowerCase();
+		if (k === "d") { ids.forEach(i => jobAction("complete", i)); }      // Done
+		else if (k === "c") { ids.forEach(i => jobAction("cancel", i)); }   // Cancel
+		else if (k === "h") { ids.forEach(i => jobAction("hold", i)); }     // Hold
+		else if (k === "s") { ids.forEach(i => jobAction("start", i)); }    // Start
+		else if (k === "u") { ids.forEach(i => unassignJob(i, false)); }    // Unassign
+		else if (k === "r") { refreshAll(); }                                // Refresh
+		else if (k === "/") { e.preventDefault(); openWindow("search", "Job Search"); }
+		else if (k === "f") { openWindow("filter", "Filter"); }
+		else if (k === "p") { openWindow("personnel", "Personnel"); }
+	});
+
+	// ── Timeline toggle ─────────────────────────────────────────────────────
+	window.toggleTimeline = function() {
+		const p = document.getElementById("timeline-pane");
+		const btn = document.getElementById("btn-timeline");
+		p.hidden = !p.hidden;
+		btn.classList.toggle("btn--primary", !p.hidden);
+		if (!p.hidden) htmx.trigger("#timeline", "refreshAll");
+	};
+
+	// ── Map window toggle ───────────────────────────────────────────────────
+	window.toggleMapWindow = function() {
+		const btn = document.getElementById("btn-map");
+		if (mapWin && !mapWin.closed) {
+			mapWin.close();
+			mapWin = null;
+			btn.classList.remove("btn--primary");
+			return;
+		}
+		mapWin = window.open("/map", "fieldopt-map", "width=960,height=720,menubar=no,toolbar=no");
+		btn.classList.add("btn--primary");
+		const poll = setInterval(() => {
+			if (!mapWin || mapWin.closed) { btn.classList.remove("btn--primary"); clearInterval(poll); mapWin = null; }
+		}, 500);
+	};
+
+	// ── Drag (mouse-event based — OG style, no HTML5 drag) ─────────────────
+	const ghost = document.getElementById("drag-ghost");
+	let dragState = null;       // {jobId, jobNumber, startX, startY} or null
+	let dragActive = false;     // true once movement threshold crossed
+	let lastHover = null;
+
+	document.addEventListener("mousedown", (e) => {
+		if (e.button !== 0) return;
+		const row = e.target.closest(".job-row");
+		if (!row) return;
+		if (e.target.closest(".ctx-menu, .modal-backdrop")) return;
+		dragState = {
+			jobId: row.dataset.jobId,
+			jobNumber: row.dataset.jobNumber,
+			startX: e.clientX,
+			startY: e.clientY,
+		};
+		e.preventDefault();  // suppress text selection start
+	});
+	document.addEventListener("selectstart", (e) => {
+		if (dragState || dragActive) e.preventDefault();
+	});
+
+	document.addEventListener("mousemove", (e) => {
+		if (!dragState) return;
+		if (!dragActive) {
+			const dx = e.clientX - dragState.startX;
+			const dy = e.clientY - dragState.startY;
+			if (Math.sqrt(dx*dx + dy*dy) < 5) return;
+			dragActive = true;
+			document.body.classList.add("dragging-active");
+			// Promote selection to include this job if not already
+			if (!selJobs.has(dragState.jobId)) {
+				selJobs.clear();
+				selJobs.add(dragState.jobId);
+				applySelectionVisuals();
+				updateSelCounts();
+			}
+			ghost.textContent = selJobs.size > 1
+				? `${selJobs.size} jobs`
+				: "Job #" + dragState.jobNumber;
+			ghost.hidden = false;
+		}
+		ghost.style.left = (e.clientX + 12) + "px";
+		ghost.style.top = (e.clientY + 12) + "px";
+
+		const target = document.elementFromPoint(e.clientX, e.clientY);
+		const tech = target ? target.closest("[data-tech-id]") : null;
+		if (tech !== lastHover) {
+			if (lastHover) lastHover.classList.remove("drop-target-hover");
+			if (tech) tech.classList.add("drop-target-hover");
+			lastHover = tech;
+		}
+	});
+
+	document.addEventListener("mouseup", async (e) => {
+		if (!dragState) return;
+		const wasActive = dragActive;
+		const state = dragState;
+		dragState = null;
+		dragActive = false;
+		document.body.classList.remove("dragging-active");
+		ghost.hidden = true;
+		if (lastHover) { lastHover.classList.remove("drop-target-hover"); }
+
+		if (!wasActive) return;  // pure click, not a drag
+
+		const target = document.elementFromPoint(e.clientX, e.clientY);
+		const techRow = target ? target.closest("[data-tech-id]") : null;
+		lastHover = null;
+		if (!techRow) return;
+
+		if (document.body.classList.contains("demo-locked")) {
+			showToast("Stop the demo to assign jobs", "warning"); return;
+		}
+		const techId = techRow.dataset.techId;
+		const techName = techRow.dataset.techName || ("Tech " + techId);
+		const jobIds = Array.from(selJobs);
+		if (jobIds.length > 1) {
+			showConfirm(`Assign ${jobIds.length} jobs to ${techName}?`, async () => {
+				for (const jid of jobIds) await assignOne(jid, techId);
+				refreshAll();
+			});
+		} else {
+			await assignOne(state.jobId, techId);
+			refreshAll();
+		}
+	});
+
+	async function assignOne(jobId, techId) {
+		const body = new FormData();
+		body.append("job_id", jobId);
+		body.append("tech_id", techId);
+		try {
+			const resp = await fetch("/assign", { method: "POST", body });
+			const html = await resp.text();
+			// Parse response and manually move OOB pieces into their hosts.
+			// (htmx.process does not perform OOB swaps for non-htmx fetches.)
+			const tmp = document.createElement("template");
+			tmp.innerHTML = html.trim();
+			const frag = tmp.content;
+			const newModal = frag.querySelector("#modal-host");
+			if (newModal) {
+				document.getElementById("modal-host").replaceWith(newModal);
+				if (window.htmx) htmx.process(newModal);
+			}
+			const newToasts = frag.querySelectorAll("#toast-host .toast, .toast");
+			newToasts.forEach(t => document.getElementById("toast-host").appendChild(t));
+		} catch (err) { showToast("Assign failed", "error"); }
+	}
+
+	// ── Confirm modal helper ────────────────────────────────────────────────
+	function showConfirm(msg, onYes) {
+		const host = document.getElementById("modal-host");
+		host.innerHTML = `
+			<div class="modal-backdrop" id="confirm-bd">
+				<div class="modal">
+					<h3>Confirm</h3>
+					<p>${msg}</p>
+					<div class="modal-actions">
+						<button class="btn" id="confirm-no">Cancel</button>
+						<button class="btn btn--warning" id="confirm-yes">Confirm</button>
+					</div>
+				</div>
+			</div>`;
+		document.getElementById("confirm-no").onclick = () => host.innerHTML = "";
+		document.getElementById("confirm-bd").onclick = (e) => { if (e.target.id === "confirm-bd") host.innerHTML = ""; };
+		document.getElementById("confirm-yes").onclick = () => { host.innerHTML = ""; onYes(); };
+	}
+
+	window.confirmAutoRoute = function() {
+		if (document.body.classList.contains("demo-locked")) {
+			showToast("Stop the demo to auto-route", "warning"); return;
+		}
+		showConfirm("Auto-route all pending jobs? ML will assign best tech per job.", async () => {
+			try {
+				const today = new Date().toISOString().slice(0, 10);
+				const r = await fetch(`/api/v1/routing/auto-route?target_date=${today}`, { method: "POST" });
+				const d = await r.json();
+				showToast(`Routed ${d.jobs_assigned || 0} jobs${d.jobs_unassigned ? ` · ${d.jobs_unassigned} unassigned` : ""}`, "success");
+				refreshAll();
+			} catch { showToast("Auto-route failed", "error"); }
+		});
+	};
+
+	// ── Context menus (OG style) ────────────────────────────────────────────
+	const ctxMenu = document.getElementById("ctx-menu");
+	function positionMenu(e) {
+		ctxMenu.style.left = e.clientX + "px";
+		ctxMenu.style.top = e.clientY + "px";
+		ctxMenu.hidden = false;
+		// Reflow + keep on-screen
+		requestAnimationFrame(() => {
+			const r = ctxMenu.getBoundingClientRect();
+			if (r.right > window.innerWidth) ctxMenu.style.left = (window.innerWidth - r.width - 4) + "px";
+			if (r.bottom > window.innerHeight) ctxMenu.style.top = (window.innerHeight - r.height - 4) + "px";
+		});
+	}
+
+	window.showJobMenu = async function(e, row) {
+		const jobId = row.dataset.jobId;
+		const jobNumber = row.dataset.jobNumber;
+		const customer = row.dataset.jobCustomer;
+		const status = row.dataset.jobStatus;
+		const multi = selJobs.size > 1 && selJobs.has(jobId);
+		const terminal = status === "completed" || status === "cancelled";
+		const header = multi
+			? `<div class="ctx-menu-header">${selJobs.size} jobs selected</div>`
+			: `<div class="ctx-menu-header">Job #${jobNumber} — ${customer}</div>`;
+		ctxMenu.innerHTML = `
+			${header}
+			<div class="ctx-menu-sep"></div>
+			<div class="ctx-menu-item ctx-menu-item--parent" onmouseenter="showAssignSubmenu(${jobId}, ${multi})" onmouseleave="hideAssignSubmenu()">
+				${multi ? `Assign ${selJobs.size} jobs to` : (status === "assigned" || status === "in_progress" ? "Reassign to" : "Assign to")}
+				<span class="ctx-arrow">▸</span>
+				<div class="ctx-submenu" id="assign-submenu" hidden></div>
+			</div>
+			<div class="ctx-menu-sep"></div>
+			<div class="ctx-menu-label">Status</div>
+			<button class="ctx-menu-item" ${terminal ? "disabled" : ""} onclick="jobAction('start', ${jobId})">
+				<span class="ctx-dot ctx-dot--success"></span>Start
+			</button>
+			<button class="ctx-menu-item" ${terminal ? "disabled" : ""} onclick="jobAction('complete', ${jobId})">
+				<span class="ctx-dot ctx-dot--info"></span>Complete
+			</button>
+			<button class="ctx-menu-item" onclick="jobAction('hold', ${jobId})">
+				<span class="ctx-dot ctx-dot--purple"></span>Hold
+			</button>
+			<button class="ctx-menu-item ctx-menu-item--danger" onclick="jobAction('cancel', ${jobId})">
+				<span class="ctx-dot ctx-dot--danger"></span>Cancel
+			</button>
+			<div class="ctx-menu-sep"></div>
+			<button class="ctx-menu-item" onclick="unassignJob(${multi ? '0' : jobId}, ${multi})">
+				${multi ? `Unassign ${selJobs.size} jobs` : "Unassign"}
+			</button>
+		`;
+		positionMenu(e);
+	};
+
+	window.showAssignSubmenu = async function(jobId, multi) {
+		const sub = document.getElementById("assign-submenu");
+		if (!sub) return;
+		sub.hidden = false;
+		sub.innerHTML = '<div class="ctx-menu-label">Loading…</div>';
+		try {
+			const r = await fetch("/qualified/" + jobId);
+			const d = await r.json();
+			const renderTech = (t, disabled) => `
+				<button class="ctx-menu-item" ${disabled ? 'style="opacity:0.5"' : ''}
+				        onclick="assignFromMenu(${jobId}, ${t.id}, ${multi})">
+					<span class="ctx-dot ctx-dot--${t.status === 'available' ? 'success' : t.status === 'en_route' ? 'warning' : t.status === 'on_job' ? 'info' : 'muted'}"></span>
+					${t.name}${t.missing.length ? ` <span style="color:var(--color-danger);font-size:10px;">(✗ ${t.missing.join(', ')})</span>` : ''}
+				</button>`;
+			let html = "";
+			if (d.qualified.length) {
+				html += '<div class="ctx-menu-label">Qualified</div>';
+				html += d.qualified.map(t => renderTech(t, false)).join("");
+			}
+			if (d.unqualified.length) {
+				if (d.qualified.length) html += '<div class="ctx-menu-sep"></div>';
+				html += '<div class="ctx-menu-label">Missing skills</div>';
+				html += d.unqualified.map(t => renderTech(t, true)).join("");
+			}
+			if (!d.qualified.length && !d.unqualified.length) {
+				html = '<div class="ctx-menu-empty">No techs on shift.</div>';
+			}
+			sub.innerHTML = html;
+		} catch {
+			sub.innerHTML = '<div class="ctx-menu-empty">Failed to load.</div>';
+		}
+	};
+	window.hideAssignSubmenu = function() {
+		// Delay hide so user can move into submenu
+		setTimeout(() => {
+			const sub = document.getElementById("assign-submenu");
+			if (sub && !sub.matches(":hover") && !sub.parentElement?.matches(":hover")) sub.hidden = true;
+		}, 200);
+	};
+	window.assignFromMenu = async function(jobId, techId, multi) {
+		ctxMenu.hidden = true;
+		if (document.body.classList.contains("demo-locked")) {
+			showToast("Stop the demo to assign", "warning"); return;
+		}
+		const ids = multi ? Array.from(selJobs) : [jobId];
+		for (const id of ids) await assignOne(id, techId);
+		refreshAll();
+	};
+
+	window.showTechMenu = function(e, row) {
+		const techId = row.dataset.techId;
+		const techName = row.dataset.techName;
+		const multi = selTechs.size > 1 && selTechs.has(techId);
+		const header = multi
+			? `<div class="ctx-menu-header">${selTechs.size} techs selected</div>`
+			: `<div class="ctx-menu-header">Tech ${techName}</div>`;
+		ctxMenu.innerHTML = `
+			${header}
+			<div class="ctx-menu-sep"></div>
+			<div class="ctx-menu-label">${multi ? "Set All Status" : "Set Status"}</div>
+			<button class="ctx-menu-item" onclick="techAction('available', ${techId}, ${multi})">
+				<span class="ctx-dot ctx-dot--success"></span>Available
+			</button>
+			<button class="ctx-menu-item" onclick="techAction('on_break', ${techId}, ${multi})">
+				<span class="ctx-dot ctx-dot--warning"></span>On Break
+			</button>
+			<button class="ctx-menu-item" onclick="techAction('off_duty', ${techId}, ${multi})">
+				<span class="ctx-dot ctx-dot--muted"></span>Off Duty
+			</button>
+		`;
+		positionMenu(e);
+	};
+
+	document.addEventListener("click", (e) => {
+		if (!ctxMenu.contains(e.target)) ctxMenu.hidden = true;
+	});
+
+	window.jobAction = async function(action, jobId) {
+		ctxMenu.hidden = true;
+		const ids = (selJobs.size > 1 && selJobs.has(String(jobId))) ? Array.from(selJobs) : [jobId];
+		try {
+			for (const id of ids) {
+				if (action === "hold") {
+					await fetch(`/api/v1/jobs/${id}/status`, { method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({status: "on_hold"}) });
+				} else {
+					await fetch(`/api/v1/jobs/${id}/${action}`, { method: "POST" });
+				}
+			}
+			refreshAll();
+		} catch (err) { showToast("Action failed", "error"); }
+	};
+
+	window.unassignJob = async function(jobId, multi) {
+		ctxMenu.hidden = true;
+		const ids = multi ? Array.from(selJobs) : [jobId];
+		for (const id of ids) {
+			const body = new FormData(); body.append("job_id", id);
+			await fetch("/unassign", { method: "POST", body });
+		}
+		refreshAll();
+	};
+
+	window.techAction = async function(status, techId, multi) {
+		ctxMenu.hidden = true;
+		const ids = multi ? Array.from(selTechs) : [techId];
+		for (const id of ids) {
+			try {
+				await fetch(`/api/v1/technicians/${id}/status`, {
+					method: "PATCH",
+					headers: {"Content-Type": "application/json"},
+					body: JSON.stringify({status})
+				});
+			} catch {}
+		}
+		refreshAll();
+	};
+
+	// ── Column resize (manual, vanilla — no AG Grid) ────────────────────────
+	function _gridKey(table) {
+		if (table.classList.contains("tech-grid")) return "tech";
+		if (table.classList.contains("job-grid")) return "job";
+		if (table.id === "personnel-table") return "personnel";
+		return table.id || "grid";
+	}
+	function attachColumnResizers(table) {
+		const key = "fieldopt.cols." + _gridKey(table);
+		const ths = table.querySelectorAll("thead th");
+		if (!ths.length) return;
+
+		let cg = table.querySelector("colgroup");
+		if (!cg || cg.children.length !== ths.length) {
+			if (cg) cg.remove();
+			cg = document.createElement("colgroup");
+			ths.forEach(() => cg.appendChild(document.createElement("col")));
+			table.insertBefore(cg, table.firstChild);
+		}
+		const cols = cg.querySelectorAll("col");
+
+		let saved = {};
+		try { saved = JSON.parse(localStorage.getItem(key) || "{}"); } catch {}
+		cols.forEach((c, i) => { if (saved[i]) c.style.width = saved[i]; });
+
+		ths.forEach((th, i) => {
+			if (th.querySelector(".col-resizer")) return;
+			const r = document.createElement("div");
+			r.className = "col-resizer";
+			r.addEventListener("mousedown", (e) => {
+				e.preventDefault(); e.stopPropagation();
+				const startX = e.clientX;
+				const startW = th.getBoundingClientRect().width;
+				document.body.style.cursor = "col-resize";
+				const onMove = (ev) => {
+					const w = Math.max(40, startW + ev.clientX - startX);
+					cols[i].style.width = w + "px";
+				};
+				const onUp = () => {
+					document.removeEventListener("mousemove", onMove);
+					document.removeEventListener("mouseup", onUp);
+					document.body.style.cursor = "";
+					const widths = {};
+					cols.forEach((c, idx) => { if (c.style.width) widths[idx] = c.style.width; });
+					try { localStorage.setItem(key, JSON.stringify(widths)); } catch {}
+				};
+				document.addEventListener("mousemove", onMove);
+				document.addEventListener("mouseup", onUp);
+			});
+			th.appendChild(r);
+		});
+	}
+	function attachAllResizers(root) {
+		(root || document).querySelectorAll("table.grid").forEach(attachColumnResizers);
+	}
+	document.body.addEventListener("htmx:afterSwap", (e) => attachAllResizers(e.detail.target));
+	document.addEventListener("DOMContentLoaded", () => attachAllResizers());
+	attachAllResizers();
+</script>
+{% endblock %}

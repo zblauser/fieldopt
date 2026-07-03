@@ -1,0 +1,71 @@
+<form class="search-criteria"
+      hx-get="/window/search" hx-target=".float-win[data-key='search'] .float-win-body" hx-swap="innerHTML"
+      hx-trigger="submit, input changed delay:400ms from:input, change from:select">
+	<div class="cr-row">
+		<label>Job #<input type="text" name="job_id" value="{{ job_id }}"></label>
+		<label>Customer<input type="text" name="customer" value="{{ customer }}"></label>
+		<label>Address / Q<input type="text" name="q" value="{{ q }}"></label>
+	</div>
+	<div class="cr-row">
+		<label>Date from<input type="date" name="date_from" value="{{ date_from }}"></label>
+		<label>Date to<input type="date" name="date_to" value="{{ date_to }}"></label>
+		<label>Status
+			<select name="status">
+				<option value="">Any</option>
+				{% for s in statuses %}<option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+			</select>
+		</label>
+	</div>
+	<div class="cr-row">
+		<label>Type
+			<select name="job_type">
+				<option value="">Any</option>
+				{% for t in job_types %}<option value="{{ t }}" {% if job_type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}
+			</select>
+		</label>
+		<label>Tech
+			<select name="tech_id">
+				<option value="">Any</option>
+				{% for t in techs %}<option value="{{ t.id }}" {% if tech_id == t.id|string %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
+			</select>
+		</label>
+		<label>Route<input type="text" name="route" value="{{ route }}"></label>
+	</div>
+	<div class="cr-actions">
+		<button class="btn" type="submit">Search</button>
+		<button class="btn" type="button" onclick="clearSearchForm(this)">Clear</button>
+		{% if any_criteria %}<span class="muted mono">{{ jobs|length }} result{% if jobs|length != 1 %}s{% endif %}{% if jobs|length == 200 %} (limit){% endif %}</span>{% endif %}
+	</div>
+</form>
+<div class="win-body" style="border-top:1px solid var(--border-light);">
+	{% if jobs %}
+	<table class="grid">
+		<thead>
+			<tr><th>JOB ID</th><th>DATE</th><th>STATUS</th><th>TYPE</th><th>PRI</th><th>CUSTOMER</th><th>RTEC</th><th>ADDRESS</th></tr>
+		</thead>
+		<tbody>
+			{% for j in jobs %}
+			<tr class="grid-row job-row search-result-row" data-job-id="{{ j.id }}"
+			    ondblclick="openWindow('job/{{ j.id }}', 'Job #{{ j.job_number or j.id }}')"
+			    oncontextmenu="event.preventDefault(); showJobMenu(event, this)"
+			    data-job-number="{{ j.job_number or j.id }}"
+			    data-job-status="{{ j.status.value }}"
+			    data-job-customer="{{ j.customer_name }}">
+				<td class="num mono">{{ j.id }}</td>
+				<td class="mono">{{ j.scheduled_date.strftime('%Y-%m-%d') if j.scheduled_date else '—' }}</td>
+				<td><span class="pill pill--{{ j.status.value }}">{{ j.status.value|upper|replace('_', ' ') }}</span></td>
+				<td>{{ j.job_type.value }}</td>
+				<td class="num mono pri pri--{{ j.priority }}">{{ j.priority }}</td>
+				<td>{{ j.customer_name }}</td>
+				<td class="mono">{{ j.route_criteria or '—' }}</td>
+				<td class="addr">{{ j.service_address }}</td>
+			</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+	{% elif any_criteria %}
+	<div class="win-empty">No matches.</div>
+	{% else %}
+	<div class="win-empty">Enter criteria above and click Search.<br>Searches across all dates (limit 200).</div>
+	{% endif %}
+</div>

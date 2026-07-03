@@ -81,3 +81,6 @@ analytics/.Rhistory
 # Backups
 backup/
 
+# Archived old React frontend (Path A) — kept on disk for reference, never built
+archive/
+

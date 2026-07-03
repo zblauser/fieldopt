@@ -1,0 +1,39 @@
+{% if sim.is_demo %}
+<div id="sim-bar" class="sim-row">
+	<span class="demo-badge">DEMO</span>
+	<span class="sim-state sim-state--{{ 'paused' if sim.is_paused else sim.mode }}">
+		{% if sim.is_paused %}■ PAUSED
+		{% elif sim.mode == 'real' %}■ STOPPED
+		{% else %}● RUNNING{% endif %}
+	</span>
+	<span class="sim-clock mono" id="sim-clock">{% if sim.mode == 'real' %}--:--:--{% else %}{{ sim.hms }}{% endif %}</span>
+
+	{% if sim.mode == 'real' %}
+	<form hx-post="/sim/start" hx-target="#sim-bar" hx-swap="outerHTML">
+		<input type="hidden" name="speed" value="500">
+		<button class="btn btn--success">▶ Start Demo</button>
+	</form>
+	{% else %}
+		{% if sim.is_paused %}
+		<button class="btn btn--primary" hx-post="/sim/resume" hx-target="#sim-bar" hx-swap="outerHTML">▶ Resume</button>
+		{% else %}
+		<button class="btn" hx-post="/sim/pause" hx-target="#sim-bar" hx-swap="outerHTML">❚❚ Pause</button>
+		{% endif %}
+		<button class="btn btn--danger" hx-post="/sim/stop" hx-target="#sim-bar" hx-swap="outerHTML">■ Stop</button>
+	{% endif %}
+
+	<div class="sim-speed">
+		<span class="sim-speed-label">Speed</span>
+		<select name="speed"
+		        hx-post="/sim/speed" hx-target="#sim-bar" hx-swap="outerHTML"
+		        hx-trigger="change"
+		        {% if sim.mode == 'real' %}disabled{% endif %}>
+			{% for s in [10, 100, 250, 500, 1000, 2000] %}
+			<option value="{{ s }}" {% if sim.speed|int == s %}selected{% endif %}>{{ s }}×</option>
+			{% endfor %}
+		</select>
+	</div>
+</div>
+{% else %}
+<div id="sim-bar"></div>
+{% endif %}

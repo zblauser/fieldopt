@@ -1,5 +1,7 @@
+> ⚠️ **WIP — full-Postgres rewrite branch (Path C).** This branch re-implements FieldOpt as *Postgres-as-platform*: PL/pgSQL functions serve the HTMX fragments and JSON via PostgREST, replacing the FastAPI backend. **Ported & verified:** the render surface (all fragments + map JSON), the assign/unassign write path, and the sim clock + controls (19 endpoints, matched against the FastAPI reference). **In progress:** the sim engine (auto-route + dispatch loop), the `/pg/` browser shell, and packaging (Docker + raw flavors). The docs below still describe the current FastAPI (Path B) app; they'll be rewritten when the rewrite lands.
+
 ## Overview
-FieldOpt - v0.0.8<br>
+FieldOpt - v0.0.9<br>
 An open-source field service management system. FieldOpt is an enterprise-grade dispatch console designed for dispatchers and field service companies to efficiently assign, route, and manage service jobs across a workforce of field technicians.
 
 <table align="center">
@@ -45,61 +47,30 @@ An open-source field service management system. FieldOpt is an enterprise-grade 
 
 ### Requirements
 
-- Python 3.11+
-- pip and npm
-- Docker or PostgreSQL 15+
+- Docker + Docker Compose
 
 ### Run
 
-#### Backend
-
 ```bash
-cd fieldopt
-pip install -r requirements.txt
-
-# Start PostgreSQL
-docker compose up -d postgres
-
-# Start the API
-python -m uvicorn backend.api.main:app --reload
+make up      # regular (no demo, sim endpoints 404)
+make demo    # IS_DEMO=true, simulation engine active
+make down    # stop containers (DB volume kept)
+make clean   # stop + wipe DB volume (fresh seed next run)
+make logs    # tail app logs
 ```
 
-#### Frontend
-
-```bash
-cd fieldopt/frontend
-npm install
-npm run dev
-```
+Single-container build (multi-stage `Dockerfile`: node → python). Compose runs `postgres` + `app` on port 8080.
 
 #### Access
 
 | Service | URL |
 |---------|-----|
-| Frontend | http://localhost:5173 |
-| API | http://localhost:8000 |
-| Swagger Docs | http://localhost:8000/docs |
-| ReDoc | http://localhost:8000/redoc |
+| Dispatch Console | http://localhost:8080/ |
+| API | http://localhost:8080/api/v1 |
+| Swagger Docs | http://localhost:8080/docs |
+| ReDoc | http://localhost:8080/redoc |
 
-#### Seed & Reset
-
-```bash
-# Seed the database with sample data
-python -m backend.database.seeds.seed_data
-
-# Reset database (drop all tables + reseed)
-python -m backend.database.reset_db
-
-# Reset database (empty, no seed data)
-python -m backend.database.reset_db --empty
-```
-
-#### Environment
-
-```bash
-cp .env.example .env
-# Edit .env — defaults work for development
-```
+`IS_DEMO=true` (set by `make demo`) enables the simulation engine and a daily 04:00 UTC reseed. Without it, `/simulation/*` returns 404 and the SimBar stays hidden.
 
 ## Routing
 ### Routing Modes
@@ -172,7 +143,22 @@ If any check fails, the dispatcher receives a warning with details but can overr
 
 ## Change Log
 
-### 0.0.8 (Latest)
+### 0.0.9 (Latest)
+HTMX is now the only frontend. React archived. Tighter chrome + slot-aware sim.
+- **HTMX at root** — server-rendered Jinja2 dashboard mounted at `/`. All `/htmx/*` paths gone; fragments live under root. Vendored htmx / idiomorph / leaflet (no npm).
+- **React archived** — old SPA moved to `archive/frontend/` (gitignored, never built, never served). Dockerfile collapsed to single-stage python. Smaller image, no Vite/npm in build, no t3.micro OOM risk.
+- **Pre-route on demo start** — `Start Demo` reseeds and immediately auto-routes every today's job before the dispatch loop kicks off. Demo plays a fully-routed day.
+- **Sequential, slot-aware dispatch** — loop dispatches one job per tech per tick, ordered by `time_slot_start`. Tech idles at base (AVAILABLE) until `depart = slot_start − travel`, then EN_ROUTE → ON_JOB → AVAILABLE. Arrivals land inside the customer window; days fill the full shift instead of finishing by 10am.
+- **Override-modal flash fixed** — manual fetch handler parses the response and moves `#modal-host` + toasts into place properly (htmx OOB swaps don't fire on raw fetches).
+- **Column resize** — vanilla JS injects `<colgroup>` per `.grid`, adds 6px resize handles on each `<th>`, persists widths to localStorage by table key. Re-attaches on every `htmx:afterSwap`.
+- **CSS port** — `app.css` is a full lift of the React design tokens + components, adapted to HTMX class names. Mobile `@media (max-width: 768px)` makes floating windows + map fullscreen.
+- **SVG icons** — header buttons use the React-source SVGs (filter, personnel, search, settings, timeline, map, refresh, auto-route bolt). Bigger touch targets (34×34 icon, 30px min-height regular).
+- **Thicker splitters** — 9px with centered grip bar, accent on hover/drag. Jobs↔Timeline splitter hidden when the timeline pane is collapsed.
+- **Grid horizontal scroll** — `.grid { min-width: 720px }` so narrow panes get a horizontal scrollbar instead of column-shrunk-to-nothing.
+- **Hidden filter selects** — Jobs pane dropped its inline status/type/tech/route bar; dash-cell clicks drive a single hidden `[name='status']` input, Filter window covers multi-select.
+- **Cache-bust** — `app.css?v=<mtime>` query param so CSS edits land without manual hard-refresh after rebuild.
+
+### 0.0.8
 ML routing + investor-ready demo day
 - **Single-container Docker** — multi-stage build (node → python). FastAPI serves the SPA via `StaticFiles`; no separate nginx. One command brings up Postgres + app: `make up` (or `make demo` to enable the simulation). Browse `http://localhost:8080`.
 - **MLStrategy** — default dispatch. Scores `(job, tech)` by `travel_time + what_if_duration(job, tech)` using hidden `speed_factor` / `skill_bonuses` modifiers. Two-pass routing: prefers techs who can arrive within the customer window, falls back to best-available so jobs never sit unrouted. `HeuristicStrategy` kept for A/B.

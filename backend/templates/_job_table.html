@@ -1,0 +1,40 @@
+<table class="grid job-grid">
+	<thead>
+		<tr>
+			<th class="num">JOB ID</th>
+			<th>TYPE</th>
+			<th>STATUS</th>
+			<th>TECH</th>
+			<th class="num">PRI</th>
+			<th>CUSTOMER</th>
+			<th>RTEC</th>
+			<th>ADDRESS</th>
+			<th>SLOT</th>
+		</tr>
+	</thead>
+	<tbody>
+		{% for j in jobs %}
+		{% set slot_end_min = (j.time_slot_end[:2]|int * 60 + j.time_slot_end[3:]|int) if j.time_slot_end else None %}
+		{% set overdue = slot_end_min and now_minutes > slot_end_min and j.status.value not in ("completed", "cancelled") %}
+		<tr class="grid-row job-row {% if overdue %}job-row--overdue{% endif %}"
+		    data-job-id="{{ j.id }}"
+		    data-job-number="{{ j.job_number or j.id }}"
+		    data-job-status="{{ j.status.value }}"
+		    data-job-customer="{{ j.customer_name }}"
+		    ondblclick="openWindow('job/{{ j.id }}', 'Job #{{ j.job_number or j.id }}')"
+		    oncontextmenu="event.preventDefault(); showJobMenu(event, this)">
+			<td class="num mono">{{ j.id }}</td>
+			<td>{{ j.job_type.value }}</td>
+			<td><span class="pill pill--{{ j.status.value }}">{{ j.status.value|upper|replace('_', ' ') }}</span></td>
+			<td>{{ j.assignment.technician.name if j.assignment else "—" }}</td>
+			<td class="num mono pri pri--{{ j.priority }}">{{ j.priority }}</td>
+			<td>{{ j.customer_name }}</td>
+			<td class="mono">{{ j.route_criteria or "—" }}</td>
+			<td class="addr">{{ j.service_address }}</td>
+			<td class="mono">{{ j.time_slot_start or "—" }}{% if j.time_slot_end %}–{{ j.time_slot_end }}{% endif %}</td>
+		</tr>
+		{% else %}
+		<tr><td colspan="9" class="empty">No jobs for today.</td></tr>
+		{% endfor %}
+	</tbody>
+</table>

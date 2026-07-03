@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>{% block title %}FieldOpt{% endblock %}</title>
+	<link rel="stylesheet" href="/static/vendor/leaflet.css">
+	<link rel="stylesheet" href="/static/app.css?v={{ static_v }}">
+	<script src="/static/vendor/htmx.min.js" defer></script>
+	<script src="/static/vendor/idiomorph-ext.min.js" defer></script>
+	<script src="/static/vendor/leaflet.js" defer></script>
+</head>
+<body hx-ext="morph">
+	{% block body %}{% endblock %}
+</body>
+</html>

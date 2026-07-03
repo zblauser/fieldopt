@@ -54,11 +54,16 @@ class SpeedRequest(BaseModel):
 async def sim_start(req: StartRequest):
     _require_demo()
     # Always reset + reseed — demo starts from a clean state every time
-    from backend.database.connection import reset_db
+    from backend.database.connection import reset_db, AsyncSessionLocal
     from backend.database.seeds.seed_data import seed_all
+    from backend.logic.routing.auto_router import auto_route_jobs
     dispatch_loop.stop()
     await reset_db()
     await seed_all()
+    # Pre-route every today's job so the demo shows a fully-routed day.
+    # Niche-skill jobs that ML would leave PENDING get assigned upfront here.
+    async with AsyncSessionLocal() as db:
+        await auto_route_jobs(db)
     virtual_start = req.virtual_start or datetime.now(timezone.utc).replace(
         hour=8, minute=0, second=0, microsecond=0
     )
