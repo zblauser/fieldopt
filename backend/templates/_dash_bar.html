@@ -1,0 +1,27 @@
+{% set failed = counts.cancelled %}
+{% set on_hold = counts.on_hold %}
+<div class="dash-cell" data-filter="status=pending" onclick="toggleDashFilter(this)">
+	<div class="dash-count dash-count--danger">{{ counts.pending }}</div><div class="dash-label">Unassigned</div>
+</div>
+<div class="dash-cell" data-filter="status=assigned" onclick="toggleDashFilter(this)">
+	<div class="dash-count dash-count--info">{{ counts.assigned }}</div><div class="dash-label">Assigned</div>
+</div>
+<div class="dash-cell" data-filter="status=in_progress" onclick="toggleDashFilter(this)">
+	<div class="dash-count dash-count--warning">{{ counts.in_progress }}</div><div class="dash-label">In Progress</div>
+</div>
+<div class="dash-cell" data-filter="status=completed" onclick="toggleDashFilter(this)">
+	<div class="dash-count dash-count--success">{{ counts.completed }}</div><div class="dash-label">Completed</div>
+</div>
+<div class="dash-cell" data-filter="status=on_hold" onclick="toggleDashFilter(this)">
+	<div class="dash-count dash-count--muted">{{ on_hold }}</div><div class="dash-label">On Hold</div>
+</div>
+<div class="dash-cell" data-filter="status=cancelled" onclick="toggleDashFilter(this)">
+	<div class="dash-count dash-count--danger">{{ failed }}</div><div class="dash-label">Failed</div>
+</div>
+<div class="header-divider"></div>
+<div class="dash-cell">
+	<div class="dash-count dash-count--success">{{ counts.tech_available }}</div><div class="dash-label">Techs Active</div>
+</div>
+<div class="dash-cell">
+	<div class="dash-count dash-count--muted">{{ counts.tech_off }}</div><div class="dash-label">Off Duty</div>
+</div>

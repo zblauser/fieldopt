@@ -1,0 +1,59 @@
+<div class="jd-content">
+	<div class="jd-header-row">
+		<span class="pill pill--{{ job.status.value }}">{{ job.status.value|upper|replace('_', ' ') }}</span>
+		<span class="jd-type">{{ job.job_type.value }}</span>
+		<span class="jd-priority pri pri--{{ job.priority }}">Priority {{ job.priority }}</span>
+	</div>
+
+	<div class="jd-section">
+		<div class="jd-section-title">Customer</div>
+		<div class="jd-field"><span class="jd-label">Name</span><span class="jd-value">{{ job.customer_name }}</span></div>
+		{% if job.customer_phone %}<div class="jd-field"><span class="jd-label">Phone</span><span class="jd-value mono">{{ job.customer_phone }}</span></div>{% endif %}
+		{% if job.customer_email %}<div class="jd-field"><span class="jd-label">Email</span><span class="jd-value mono">{{ job.customer_email }}</span></div>{% endif %}
+	</div>
+
+	<div class="jd-section">
+		<div class="jd-section-title">Service Location</div>
+		<div class="jd-field"><span class="jd-label">Address</span><span class="jd-value">{{ job.service_address }}</span></div>
+		<div class="jd-field"><span class="jd-label">City / Zip</span><span class="jd-value">{{ (job.service_city or '') }} {{ job.service_zip or '' }}</span></div>
+		<div class="jd-field"><span class="jd-label">Route</span><span class="jd-value mono">{{ job.route_criteria or '—' }}</span></div>
+		<div class="jd-field"><span class="jd-label">Lat / Lon</span><span class="jd-value mono">{{ "%.4f"|format(job.latitude) }}, {{ "%.4f"|format(job.longitude) }}</span></div>
+	</div>
+
+	<div class="jd-section">
+		<div class="jd-section-title">Schedule</div>
+		<div class="jd-field"><span class="jd-label">Date</span><span class="jd-value">{{ job.scheduled_date.strftime('%Y-%m-%d') if job.scheduled_date else '—' }}</span></div>
+		<div class="jd-field"><span class="jd-label">Time Slot</span><span class="jd-value mono">{% if job.time_slot_start and job.time_slot_end %}{{ job.time_slot_start }}–{{ job.time_slot_end }}{% else %}—{% endif %}</span></div>
+		<div class="jd-field"><span class="jd-label">Duration</span><span class="jd-value">{{ job.estimated_duration }} min</span></div>
+	</div>
+
+	<div class="jd-section">
+		<div class="jd-section-title">Assignment</div>
+		<div class="jd-field">
+			<span class="jd-label">Tech</span>
+			<span class="jd-value">{{ job.assignment.technician.name if job.assignment else 'Unassigned' }}</span>
+		</div>
+		{% if job.assignment %}
+		<div class="jd-field"><span class="jd-label">ETA</span><span class="jd-value mono">{{ job.assignment.estimated_arrival.strftime('%H:%M') if job.assignment.estimated_arrival else '—' }}</span></div>
+		<div class="jd-field"><span class="jd-label">Travel</span><span class="jd-value">{{ job.assignment.estimated_travel_time or '—' }} min · {{ "%.1f"|format(job.assignment.estimated_distance or 0) }} mi</span></div>
+		{% if job.assignment.actual_duration_minutes %}<div class="jd-field"><span class="jd-label">Sim duration</span><span class="jd-value">{{ job.assignment.actual_duration_minutes }} min</span></div>{% endif %}
+		{% endif %}
+	</div>
+
+	<div class="jd-section">
+		<div class="jd-section-title">Required Skills</div>
+		<div class="jd-skills">
+			{% for s in (job.required_skills or []) %}<span class="skill-chip">{{ s }}</span>{% else %}<span class="muted">None</span>{% endfor %}
+		</div>
+	</div>
+
+	{% if job.description %}<div class="jd-section"><div class="jd-section-title">Description</div><div class="jd-text">{{ job.description }}</div></div>{% endif %}
+	{% if job.special_instructions %}<div class="jd-section"><div class="jd-section-title">Special Instructions</div><div class="jd-text jd-text--warning">{{ job.special_instructions }}</div></div>{% endif %}
+	{% if job.notes %}<div class="jd-section"><div class="jd-section-title">Notes</div><div class="jd-text">{{ job.notes }}</div></div>{% endif %}
+
+	<div class="jd-section jd-timestamps">
+		<div class="jd-field"><span class="jd-label">Created</span><span class="jd-value mono">{{ job.created_at.strftime('%Y-%m-%d %H:%M') if job.created_at else '—' }}</span></div>
+		{% if job.started_at %}<div class="jd-field"><span class="jd-label">Started</span><span class="jd-value mono">{{ job.started_at.strftime('%Y-%m-%d %H:%M') }}</span></div>{% endif %}
+		{% if job.completed_at %}<div class="jd-field"><span class="jd-label">Completed</span><span class="jd-value mono">{{ job.completed_at.strftime('%Y-%m-%d %H:%M') }}</span></div>{% endif %}
+	</div>
+</div>

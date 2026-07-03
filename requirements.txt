@@ -13,3 +13,6 @@ python-dotenv==1.0.0
 alembic==1.15.2
 numpy>=1.26.0
 scipy>=1.11.0
+
+# Server-rendered UI (Path B spike)
+jinja2==3.1.4

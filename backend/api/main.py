@@ -9,12 +9,11 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.config import get_settings
 from backend.database.connection import init_db
-from backend.api.routes import technicians, jobs, assignments, routing, simulation
+from backend.api.routes import technicians, jobs, assignments, routing, simulation, htmx
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -42,8 +41,7 @@ async def _daily_reseed_loop() -> None:
 		except Exception:
 			logger.exception("Daily reseed failed")
 
-FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
-SERVE_FRONTEND = FRONTEND_DIST.is_dir() and (FRONTEND_DIST / "index.html").is_file()
+# React SPA (Path A) is archived. HTMX UI is the only frontend.
 
 
 @asynccontextmanager
@@ -82,17 +80,6 @@ app.add_middleware(
 	allow_methods=["*"],
 	allow_headers=["*"],
 )
-
-
-if not SERVE_FRONTEND:
-	@app.get("/")
-	async def root():
-		return {
-			"message": f"Welcome to {settings.APP_NAME} API",
-			"version": settings.APP_VERSION,
-			"docs": "/docs",
-			"status": "operational",
-		}
 
 
 @app.get("/health")
@@ -134,19 +121,13 @@ app.include_router(
 	tags=["Simulation"],
 )
 
+# HTMX UI — primary frontend, mounted at /. All dashboard fragments + sim
+# controls live under root. /api/v1/* routers above win on prefix.
+app.include_router(htmx.router, prefix="", tags=["HTMX"], include_in_schema=False)
 
-# SPA fallback — must be registered AFTER all /api/* routers so they win on prefix.
-# StaticFiles with html=True serves index.html at "/" and assets by path.
-# A catch-all FileResponse handles client-side routes (e.g. /jobs/123 deep-links).
-if SERVE_FRONTEND:
-	app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="assets")
-
-	@app.get("/{full_path:path}", include_in_schema=False)
-	async def spa_fallback(full_path: str):
-		candidate = FRONTEND_DIST / full_path
-		if full_path and candidate.is_file():
-			return FileResponse(candidate)
-		return FileResponse(FRONTEND_DIST / "index.html")
+_STATIC_DIR = Path(__file__).resolve().parents[1] / "static"
+if _STATIC_DIR.is_dir():
+	app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 
 if __name__ == "__main__":

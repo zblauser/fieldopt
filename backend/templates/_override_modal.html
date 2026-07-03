@@ -1,0 +1,29 @@
+{# Override warning modal — rendered into #modal-host when CanDo issues exist. #}
+<div id="modal-host" hx-swap-oob="true">
+	<div class="modal-backdrop" onclick="document.getElementById('modal-host').innerHTML=''">
+		<div class="modal" onclick="event.stopPropagation()">
+			<h3>Override CanDo check?</h3>
+			<p>Job <strong>#{{ job.job_number or job.id }}</strong> ({{ job.customer_name }}) → <strong>{{ tech.name }}</strong></p>
+			<ul class="issues">
+				{% for i in issues %}
+				<li class="{{ 'ok' if i.pass else 'fail' }}">
+					{{ '✓' if i.pass else '✗' }} {{ i.label }}
+				</li>
+				{% endfor %}
+			</ul>
+			<div class="modal-actions">
+				<button class="btn" onclick="document.getElementById('modal-host').innerHTML=''">Cancel</button>
+				<form hx-post="/assign"
+				      hx-target="#toast-host"
+				      hx-swap="innerHTML"
+				      style="display:inline">
+					<input type="hidden" name="job_id" value="{{ job.id }}">
+					<input type="hidden" name="tech_id" value="{{ tech.id }}">
+					<input type="hidden" name="override" value="1">
+					<button class="btn btn--stop"
+					        onclick="document.getElementById('modal-host').innerHTML=''">Override</button>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>

@@ -58,9 +58,10 @@ async def create_assignment(
 	)
 
 	job.status = JobStatus.ASSIGNED
-	# Mark tech busy so the strategy stops picking them on subsequent jobs.
-	# Step 2 of the sim tick flips them to ON_JOB on arrival; step 3 back to AVAILABLE on complete.
-	if tech.status == TechnicianStatus.AVAILABLE:
+	# Only flip to EN_ROUTE for *live* assigns (now=given). Pre-routing assigns
+	# a full day at once — tech state stays AVAILABLE so the loop can stamp
+	# departures one job at a time, honoring each time_slot_start.
+	if now is not None and tech.status == TechnicianStatus.AVAILABLE:
 		tech.status = TechnicianStatus.EN_ROUTE
 
 	db.add(assignment)

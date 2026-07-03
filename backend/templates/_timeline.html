@@ -1,0 +1,41 @@
+{# Timeline: rows of techs, each with assignment blocks. Pure SVG, no client lib. #}
+{% set row_h = 22 %}
+{% set name_w = 140 %}
+{% set px_per_min = 1.2 %}            {# 1.2px = 1 virtual minute → 540min × 1.2 = 648px wide #}
+{% set chart_w = total_min * px_per_min %}
+{% set svg_w = name_w + chart_w + 12 %}
+{% set svg_h = (rows|length * row_h) + 28 %}
+<div class="timeline-wrap">
+	<svg class="timeline" width="{{ svg_w }}" height="{{ svg_h }}" viewBox="0 0 {{ svg_w }} {{ svg_h }}" preserveAspectRatio="xMinYMin meet">
+		<!-- Hour grid -->
+		{% for h in hours %}
+			{% set x = name_w + (loop.index0 * 60 * px_per_min) %}
+			<line x1="{{ x }}" y1="20" x2="{{ x }}" y2="{{ svg_h }}" class="tl-grid"/>
+			<text x="{{ x + 2 }}" y="14" class="tl-hour">{{ "%02d:00"|format(h) }}</text>
+		{% endfor %}
+
+		<!-- Rows -->
+		{% for r in rows %}
+			{% set y = 24 + (loop.index0 * row_h) %}
+			<text x="6" y="{{ y + 14 }}" class="tl-name">{{ r.tech.name }}</text>
+			<line x1="{{ name_w }}" y1="{{ y + row_h - 1 }}" x2="{{ svg_w }}" y2="{{ y + row_h - 1 }}" class="tl-rowline"/>
+			{% for b in r.blocks %}
+				{% set bx = name_w + (b.offset_min * px_per_min) %}
+				{% set bw = b.width_min * px_per_min %}
+				<g class="tl-block tl-block--{{ b.status }}">
+					<title>#{{ b.job_number }} {{ b.customer }} — ETA {{ b.eta_hms }} ({{ b.width_min|int }}m)</title>
+					<rect x="{{ bx }}" y="{{ y + 3 }}" width="{{ bw }}" height="{{ row_h - 7 }}" rx="2"/>
+					{% if bw > 36 %}
+					<text x="{{ bx + 4 }}" y="{{ y + 14 }}" class="tl-block-label">#{{ b.job_number }}</text>
+					{% endif %}
+				</g>
+			{% endfor %}
+		{% endfor %}
+
+		<!-- Now marker -->
+		{% if now_offset_min < total_min %}
+			{% set nx = name_w + (now_offset_min * px_per_min) %}
+			<line x1="{{ nx }}" y1="18" x2="{{ nx }}" y2="{{ svg_h }}" class="tl-now"/>
+		{% endif %}
+	</svg>
+</div>

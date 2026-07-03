@@ -106,16 +106,62 @@ class DispatchLoop:
 async def _tick(db: AsyncSession, now: datetime, strategy: DispatchStrategy, sim_start: datetime | None = None) -> list[DispatchEvent]:
 	events: list[DispatchEvent] = []
 
-	# ── 1. Stamp estimated_arrival on newly-assigned jobs ──────────────────
-	result = await db.execute(
-		select(Assignment).join(Job, Assignment.job_id == Job.id).where(
+	# ── 1. Stamp estimated_arrival sequentially — one job per tech per tick ──
+	# Pre-route assigns a whole day's worth of jobs to each tech. We don't want
+	# them all firing simultaneously; instead the tech works the queue earliest
+	# time_slot first. A tech is ready for the *next* job when:
+	#   - status is AVAILABLE or EN_ROUTE, AND
+	#   - none of their ASSIGNED jobs already has an arrival pending.
+	candidate_techs = (await db.execute(
+		select(Technician)
+		.distinct()
+		.join(Assignment, Assignment.technician_id == Technician.id)
+		.join(Job, Assignment.job_id == Job.id)
+		.where(
+			Technician.status.in_([TechnicianStatus.AVAILABLE, TechnicianStatus.EN_ROUTE]),
 			Job.status == JobStatus.ASSIGNED,
 			Assignment.estimated_arrival.is_(None),
 		)
-	)
-	for assignment in result.scalars().all():
-		travel = assignment.estimated_travel_time or 0
-		assignment.estimated_arrival = now + timedelta(minutes=travel)
+	)).scalars().all()
+	for tech in candidate_techs:
+		# Skip if this tech already has an EN_ROUTE assignment ticking down.
+		pending = (await db.execute(
+			select(Assignment.id).join(Job, Assignment.job_id == Job.id).where(
+				Assignment.technician_id == tech.id,
+				Job.status == JobStatus.ASSIGNED,
+				Assignment.estimated_arrival.is_not(None),
+			).limit(1)
+		)).scalar_one_or_none()
+		if pending is not None:
+			continue
+		next_a = (await db.execute(
+			select(Assignment).join(Job, Assignment.job_id == Job.id).where(
+				Assignment.technician_id == tech.id,
+				Job.status == JobStatus.ASSIGNED,
+				Assignment.estimated_arrival.is_(None),
+			).order_by(Job.time_slot_start.nullsfirst(), Job.id).limit(1)
+		)).scalar_one_or_none()
+		if next_a is None:
+			continue
+		travel = next_a.estimated_travel_time or 0
+		# Honor the customer time slot: don't arrive before slot_start. Tech idles
+		# at base (AVAILABLE) until depart_time = slot_start - travel.
+		slot_str = next_a.job.time_slot_start
+		if slot_str:
+			try:
+				h, m = int(slot_str[:2]), int(slot_str[3:5])
+				slot_dt = now.replace(hour=h, minute=m, second=0, microsecond=0)
+				depart_dt = slot_dt - timedelta(minutes=travel)
+				if now < depart_dt:
+					continue  # too early — wait
+				arrival_dt = max(now + timedelta(minutes=travel), slot_dt)
+			except (ValueError, IndexError):
+				arrival_dt = now + timedelta(minutes=travel)
+		else:
+			arrival_dt = now + timedelta(minutes=travel)
+		next_a.estimated_arrival = arrival_dt
+		if tech.status == TechnicianStatus.AVAILABLE:
+			tech.status = TechnicianStatus.EN_ROUTE
 	await db.commit()
 
 	# ── 2. ASSIGNED → IN_PROGRESS when arrival passes ──────────────────────
@@ -234,7 +280,23 @@ async def _tick(db: AsyncSession, now: datetime, strategy: DispatchStrategy, sim
 			)
 		)
 		active_today = count_result.scalar() or 0
-		if active_today == 0:
+		# Day ends when all jobs terminal OR virtual clock passes 18:00 (post-shift).
+		# Time-based stop prevents the sim from rolling forever when ML intentionally
+		# leaves niche-skill jobs (T. Monk, Sun Ra, Tim Berne) unassigned.
+		past_shift = now.hour >= 18
+		if active_today == 0 or past_shift:
+			# Cancel any still-active jobs so they don't sit pending forever.
+			if past_shift and active_today > 0:
+				await db.execute(
+					Job.__table__.update()
+					.where(
+						Job.status.in_([JobStatus.PENDING, JobStatus.ASSIGNED]),
+						Job.scheduled_date >= day_start,
+						Job.scheduled_date < day_end,
+					)
+					.values(status=JobStatus.CANCELLED)
+				)
+				await db.commit()
 			events.append(DispatchEvent(event_type="day_complete", timestamp=now))
 
 	elapsed_min = int((now - sim_start).total_seconds() / 60) if sim_start else 0

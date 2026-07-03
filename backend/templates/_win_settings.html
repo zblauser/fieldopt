@@ -1,0 +1,59 @@
+<div class="win-body" style="padding:14px;">
+	<div class="settings-group">
+		<label>Refresh interval</label>
+		<select onchange="setRefreshInterval(parseInt(this.value))" id="set-refresh">
+			<option value="1000">1 second</option>
+			<option value="3000">3 seconds</option>
+			<option value="5000">5 seconds</option>
+			<option value="10000">10 seconds</option>
+			<option value="0">Off (manual)</option>
+		</select>
+	</div>
+
+	<div class="settings-group">
+		<label>Display density</label>
+		<select id="set-density" onchange="document.body.dataset.density = this.value; localStorage.setItem('fieldopt.density', this.value);">
+			<option value="normal">Normal</option>
+			<option value="compact">Compact</option>
+			<option value="comfortable">Comfortable</option>
+		</select>
+	</div>
+	<script>
+		(function() {
+			const r = localStorage.getItem("fieldopt.refresh") || "3000";
+			const sel = document.getElementById("set-refresh");
+			if (sel) sel.value = r;
+			const d = localStorage.getItem("fieldopt.density") || "normal";
+			const ds = document.getElementById("set-density");
+			if (ds) ds.value = d;
+		})();
+	</script>
+
+	<div class="settings-group">
+		<label>Sim mode</label>
+		<div class="mono muted">{{ sim.mode|upper }}{% if sim.is_demo %} · DEMO build{% endif %}</div>
+	</div>
+
+	<div class="settings-group">
+		<label>Quick actions</label>
+		<button class="btn" onclick="document.body.dispatchEvent(new Event('refreshAll'))">Refresh now</button>
+		<button class="btn btn--danger" onclick="if(confirm('Reset all selections?')){selTechs.clear();selJobs.clear();applySelectionVisuals();updateSelCounts();syncTechSelection();}">Clear selections</button>
+	</div>
+
+	<div class="settings-group">
+		<label>Keyboard shortcuts</label>
+		<div style="font-size:var(--font-size-xs); color: var(--text-secondary); line-height: 1.8;">
+			<div><span class="mono" style="display:inline-block;width:80px;color:var(--color-accent);">⌘/Ctrl+A</span> Select all (in hovered pane)</div>
+			<div><span class="mono" style="display:inline-block;width:80px;color:var(--color-accent);">Esc</span> Clear selection / close modal</div>
+			<div><span class="mono" style="display:inline-block;width:80px;color:var(--color-accent);">D</span> Complete selected jobs</div>
+			<div><span class="mono" style="display:inline-block;width:80px;color:var(--color-accent);">S</span> Start selected jobs</div>
+			<div><span class="mono" style="display:inline-block;width:80px;color:var(--color-accent);">C</span> Cancel selected jobs</div>
+			<div><span class="mono" style="display:inline-block;width:80px;color:var(--color-accent);">H</span> Hold selected jobs</div>
+			<div><span class="mono" style="display:inline-block;width:80px;color:var(--color-accent);">U</span> Unassign selected jobs</div>
+			<div><span class="mono" style="display:inline-block;width:80px;color:var(--color-accent);">R</span> Refresh all panes</div>
+			<div><span class="mono" style="display:inline-block;width:80px;color:var(--color-accent);">/</span> Open Job Search</div>
+			<div><span class="mono" style="display:inline-block;width:80px;color:var(--color-accent);">F</span> Open Filter</div>
+			<div><span class="mono" style="display:inline-block;width:80px;color:var(--color-accent);">P</span> Open Personnel</div>
+		</div>
+	</div>
+</div>

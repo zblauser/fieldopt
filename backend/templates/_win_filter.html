@@ -1,0 +1,71 @@
+<div class="win-body" style="padding:14px;">
+	<p class="muted" style="margin-bottom:12px;font-size:var(--font-size-sm);">
+		Filters apply live to the Jobs grid. Multi-select with checkboxes.
+	</p>
+
+	<div class="filter-section">
+		<div class="filter-section-head">
+			<span>Status</span>
+			<span class="filter-section-actions">
+				<button onclick="filterCheckAll('status', true)">All</button>
+				<button onclick="filterCheckAll('status', false)">None</button>
+			</span>
+		</div>
+		<div class="filter-checks">
+			{% for s in statuses %}
+			<label><input type="checkbox" name="f-status" value="{{ s }}" checked onchange="applyFilterMulti()">{{ s }}</label>
+			{% endfor %}
+		</div>
+	</div>
+
+	<div class="filter-section">
+		<div class="filter-section-head">
+			<span>Job type</span>
+			<span class="filter-section-actions">
+				<button onclick="filterCheckAll('job_type', true)">All</button>
+				<button onclick="filterCheckAll('job_type', false)">None</button>
+			</span>
+		</div>
+		<div class="filter-checks">
+			{% for t in job_types %}
+			<label><input type="checkbox" name="f-job_type" value="{{ t }}" checked onchange="applyFilterMulti()">{{ t }}</label>
+			{% endfor %}
+		</div>
+	</div>
+
+	<div class="filter-section">
+		<div class="filter-section-head">
+			<span>Route</span>
+			<span class="filter-section-actions">
+				<button onclick="filterCheckAll('route', true)">All</button>
+				<button onclick="filterCheckAll('route', false)">None</button>
+			</span>
+		</div>
+		<div class="filter-checks">
+			{% for r in routes %}
+			<label><input type="checkbox" name="f-route" value="{{ r }}" checked onchange="applyFilterMulti()">{{ r }}</label>
+			{% endfor %}
+		</div>
+	</div>
+
+	<div class="filter-section">
+		<div class="filter-section-head">
+			<span>Technician</span>
+			<span class="filter-section-actions">
+				<button onclick="filterCheckAll('tech_id', true)">All</button>
+				<button onclick="filterCheckAll('tech_id', false)">None</button>
+			</span>
+		</div>
+		<div class="filter-checks">
+			<label><input type="checkbox" name="f-tech_id" value="unassigned" checked onchange="applyFilterMulti()">— Unassigned —</label>
+			{% for t in techs %}
+			<label><input type="checkbox" name="f-tech_id" value="{{ t.id }}" checked onchange="applyFilterMulti()">{{ t.name }}</label>
+			{% endfor %}
+		</div>
+	</div>
+
+	<div style="display:flex;gap:8px;margin-top:12px;">
+		<button class="btn" onclick="filterResetAll()">Reset all</button>
+		<button class="btn btn--primary" onclick="filterClearAll()">Clear (show all)</button>
+	</div>
+</div>

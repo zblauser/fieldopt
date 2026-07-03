@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>FieldOpt — Map</title>
+	<link rel="stylesheet" href="/static/vendor/leaflet.css">
+	<link rel="stylesheet" href="/static/app.css">
+	<script src="/static/vendor/leaflet.js" defer></script>
+	<style>
+		html, body { margin: 0; height: 100%; background: #11151c; }
+		#map { height: 100vh; width: 100vw; }
+	</style>
+</head>
+<body>
+	<div id="map"></div>
+	<script>
+		function init() {
+			if (typeof L === "undefined") return setTimeout(init, 50);
+			const map = L.map("map").setView([40.75, -73.95], 11);
+			L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '&copy; OSM' }).addTo(map);
+			const jobLayer = L.layerGroup().addTo(map);
+			const techLayer = L.layerGroup().addTo(map);
+			const routeLayer = L.layerGroup().addTo(map);
+
+			// Stable color per tech for route polylines
+			const techColor = (id) => {
+				const palette = ["#4a9eff","#4caf6a","#e5a834","#9b7ed8","#e05555","#5b9bd5","#7a7e88","#d97757","#52a695","#c8a456"];
+				return palette[id % palette.length];
+			};
+			const STATUS_COLOR = {
+				pending:"#e5a834", assigned:"#5b9bd5", in_progress:"#4caf6a", completed:"#6b6f78", cancelled:"#e05555", on_hold:"#9b7ed8",
+				available:"#4caf6a", en_route:"#e5a834", on_job:"#5b9bd5", on_break:"#9b7ed8", off_duty:"#3a3f4a"
+			};
+			const dot = (c, s = 10) => L.divIcon({
+				className: "map-dot",
+				html: `<span style="background:${c};width:${s}px;height:${s}px"></span>`,
+				iconSize: [s,s], iconAnchor: [s/2,s/2]
+			});
+			async function refresh() {
+				try {
+					const r = await fetch("/map/markers");
+					const d = await r.json();
+					jobLayer.clearLayers();
+					d.jobs.forEach(j => L.marker([j.lat, j.lng], { icon: dot(STATUS_COLOR[j.status] || "#fff", 9) })
+					 .bindTooltip(`#${j.job_number} ${j.customer}<br>${j.address}<br>${j.status}`).addTo(jobLayer));
+					techLayer.clearLayers();
+					d.techs.forEach(t => L.marker([t.lat, t.lng], { icon: dot(STATUS_COLOR[t.status] || "#fff", 14) })
+					 .bindTooltip(`<b>${t.name}</b><br>${t.status}`).addTo(techLayer));
+
+					routeLayer.clearLayers();
+					(d.routes || []).forEach(r => {
+						const color = techColor(r.tech_id);
+						// Completed legs (faded) + remaining legs (solid)
+						const done = r.path.slice(0, r.done_count + 1);
+						const todo = r.path.slice(r.done_count);
+						if (done.length >= 2) L.polyline(done, { color, weight: 2, opacity: 0.25, dashArray: "4 4" }).addTo(routeLayer);
+						if (todo.length >= 2) L.polyline(todo, { color, weight: 3, opacity: 0.75 })
+							.bindTooltip(`<b>${r.tech_name}</b> · ${r.path.length - 1} jobs`).addTo(routeLayer);
+					});
+				} catch {}
+			}
+			refresh();
+			setInterval(refresh, 3000);
+		}
+		init();
+	</script>
+</body>
+</html>

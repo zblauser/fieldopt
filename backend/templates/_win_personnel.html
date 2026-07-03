@@ -1,0 +1,30 @@
+<div class="win-toolbar">
+	<input type="text" class="win-input" placeholder="Search by name or ID…"
+	       oninput="filterPersonnel(this.value)" id="personnel-search" autofocus>
+	<span class="muted mono" id="personnel-count">{{ techs|length }} / {{ techs|length }}</span>
+</div>
+<div class="win-body">
+	<table class="grid" id="personnel-table">
+		<thead>
+			<tr>
+				<th>ID</th><th>NAME</th><th>STATUS</th><th>SHIFT</th><th>SKILLS</th><th>ROUTES</th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for t in techs %}
+			<tr class="grid-row personnel-row"
+			    data-tech-id="{{ t.id }}" data-tech-name="{{ t.name }}"
+			    data-search="{{ (t.employee_id or '')|lower }} {{ t.name|lower }} {{ t.id }}"
+			    ondblclick="locateTech({{ t.id }})"
+			    oncontextmenu="event.preventDefault(); showTechMenu(event, this)">
+				<td class="num mono">{{ t.employee_id or t.id }}</td>
+				<td>{{ t.name }}</td>
+				<td><span class="pill pill--{{ t.status.value }}">{{ t.status.value|upper|replace('_', ' ') }}</span></td>
+				<td class="mono">{{ t.shift_start }}–{{ t.shift_end }}</td>
+				<td class="mono muted" style="max-width:180px; overflow:hidden; text-overflow:ellipsis;">{{ (t.skills or [])|join(', ') }}</td>
+				<td class="mono muted" style="max-width:180px; overflow:hidden; text-overflow:ellipsis;">{{ (t.assigned_routes or [])|join(', ') }}</td>
+			</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+</div>
